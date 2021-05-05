@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+#Configuration files
+*.json
+
+#Executables files
+test_bmp
+main
+
+#Output files
+checkboard.bmp
