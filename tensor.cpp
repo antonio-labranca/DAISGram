@@ -13,23 +13,111 @@
 
 using namespace std;
 
+/**
+ * Class constructor
+ * 
+ * Parameter-less class constructor 
+ */
+Tensor::Tensor(){}
 
+/**
+ * Class constructor
+ * 
+ * Creates a new tensor of size r*c*d initialized at value v
+ * 
+ * @param r
+ * @param c
+ * @param d
+ * @param v
+ * @return new Tensor
+ */
+Tensor::Tensor(int r, int c, int d, float v){
+    if(r < 0 || c < 0 || d < 0)
+        throw unknown_operation();
+    
+    //Inizializzo righe, colonne e profondita'
+    this->r = r;
+    this->c = c;
+    this->d = d;
 
-ostream& operator<< (ostream& is, const Tensor & t)
-{
-    if(t.r==0 || t.c==0 || t.d==0) is<<"Il tensore non e' inizializzato";
+    if(this->r != 0 && this->c != 0 && this->d != 0){
+        data = new float[r * c *d]; //Creo un vettore in memoria dinamica di dimensione righe x colonne x profondita'
 
-    for(int k = 0; k < t.d; k++)//scorro per la profondita'sore non e' inizzializzato";
-    {
-        is <<"LIVELLO " << k << endl;//aggiungo un identificatore che mi definisce a che profondità sono
-        for(int j = 0; j < t.c; j++)//scorro per la colonne
-        {
-            for(int i = 0; i < t.r; i++)//scorro per la righe
-                is << t(i, j, k) << "\t";     //aggiungo il valore allo stream e lo tabulo per seguire le colonne
+        for(int i = 0; i < r; i++)
+            for(int j = 0; j < c; j++)
+                for(int k = 0; k < d; k++)
+                    (*this)(i, j, k) = v; //Inizializzo il tensore al valore v
+    }
+}
 
-            is << endl;//vado a capo ad ogni colonna
-        }
-        is << endl;//vado a capo ad ogni livello di profondità e salto una riga
+/**
+ * Class distructor
+ * 
+ * Cleanup the data when deallocated
+ */
+Tensor::~Tensor(){
+    //Controllo se esiste il vettore data
+    if(data){
+        delete[] data;
+        data = nullptr;
+    }
+}
+
+/**
+ * Operator overloading ()
+ * 
+ * if indexes are out of bound throw index_out_of_bound() exception
+ * 
+ * @return the value at location [i][j][k]
+ */
+float Tensor::operator()(int i, int j, int k) const{
+    //Controllo se le dimensioni del tensore sono in range [0, r] x [0, c] x [0, d]
+    if(i >= 0 && i <= this->r && j >= 0 && j <= this->c && k >= 0 && k <= this->d)
+        return data[(i*this->c + j)*this->d + k];
+    else
+        throw index_out_of_bound();
+}
+
+/**
+ * Operator overloading ()
+ * 
+ * Return the pointer to the location [i][j][k] such that the operator (i,j,k) can be used to 
+ * modify tensor data.
+ * 
+ * If indexes are out of bound throw index_out_of_bound() exception
+ * 
+ * @return the pointer to the location [i][j][k]
+ */
+float & Tensor::operator()(int i, int j, int k){
+    //Controllo se le dimensioni del tensore sono in range [0, r] x [0, c] x [0, d]
+    if(i >= 0 && i <= this->r && j >= 0 && j <= this->c && k >= 0 && k <= this->d)
+        return data[(i*this->c + j)*this->d + k];
+    else
+        throw index_out_of_bound();
+}
+
+/**
+ * Copy constructor
+ * 
+ * This constructor copies the data from another Tensor
+ *      
+ * @return the new Tensor
+ */
+Tensor::Tensor(const Tensor& that){
+    //Inizializzo righe, colonne e profondita'
+    this->r = that.r;
+    this->c = that.c;
+    this->d = that.d;
+
+    //Controllo che il tensore that sia inizializzato
+    if(that.r != 0 && that.c != 0 && that.d != 0){
+        //Creo un vettore di dimensioni righe x colonne x profondita'
+        data = new float[r * c * d];
+
+        for(int i = 0; i < r; i++)
+            for(int j = 0; j < c; j++)
+                for(int k = 0; k < d; k++)
+                    (*this)(i, j, k) = that(i, j, k);
     }
 }
 
@@ -291,6 +379,89 @@ void Tensor::init_random(float mean, float std) {
 }
 
 /**
+ * Constant Initialization
+ * 
+ * Perform the initialization of the tensor to a value v
+ * 
+ * @param r The number of rows
+ * @param c The number of columns
+ * @param d The depth
+ * @param v The initialization value
+ */
+void Tensor::init(int r, int c, int d, float v){
+    //Controllo che v sia maggiore o uguale a 0
+    if(v >= 0){
+        //Controllo che le dimensioni corrispondano
+        if(this->r == r && this->c == c && this->d == d)
+            for(int i = 0; i < this->r; i++)
+                for(int j = 0; j < this->c; j++)
+                    for(int k = 0; k < this->d; k++)
+                        (*this)(i, j, k) = v;
+        else
+            throw dimension_mismatch();
+    }
+    else
+        throw unknown_operation();
+}
+
+/**
+ * Tensor Clamp
+ * 
+ * Clamp the tensor such that the lower value becomes low and the higher one become high.
+ * 
+ * @param low Lower value
+ * @param high Higher value 
+ */
+void Tensor::clamp(float low, float high){
+    //Controllo che il tensore sia inizializzato
+    if(this->r != 0 && this->c != 0 && this->d != 0){
+        for(int i = 0; i < this->r; i++)
+            for(int j = 0; j < this->c; j++)
+                for(int k = 0; k < this->d; k++)
+                    if((*this)(i, j, k) < low)
+                        (*this)(i, j, k) = low;
+                    else if((*this)(i, j, k) > high)
+                        (*this)(i, j, k) = high;
+    }
+    else
+        throw tensor_not_initialized();
+}
+
+/**
+ * Tensor Rescaling
+ * 
+ * Rescale the value of the tensor following this rule:
+ * 
+ * newvalue(i,j,k) = ((data(i,j,k)-min(k))/(max(k)-min(k)))*new_max
+ * 
+ * where max(k) and min(k) are the maximum and minimum value in the k-th channel.
+ * 
+ * new_max is the new value for the maximum
+ * 
+ * @param new_max New maximum vale
+ */
+void Tensor::rescale(float new_max){
+    //Controllo che il tensore sia inizializzato
+    if(this->r != 0 && this->c != 0 && this->d != 0){
+        for(int k = 0; k < this->d; k++){
+            int min = this->getMin(k); //Minimo sulla profondita' k
+            int max = this->getMax(k); //Massimo sulla profondita' k
+
+            //Controllo che il minimo e il massimo siano diversi
+            if(min == max)
+                throw unknown_operation();
+            
+            for(int i = 0; i < this->r; i++)
+                for(int j = 0; j < this->c; j++)
+                    (*this)(i, j, k) = (((*this)(i, j, k) - min) / (max - min)) * new_max;
+        }
+
+    }
+    else
+        throw tensor_not_initialized();
+}
+
+/**
  * Tensor padding
  * 
  * Zero pad a tensor in height and width, the new tensor will have the following dimensions:
@@ -462,4 +633,230 @@ Tensor Tensor::convolve(const Tensor& f) const {
         }
     }
     return ris;
+}
+
+/* UTILITY */
+
+/** 
+ * Rows 
+ * 
+ * @return the number of rows in the tensor
+ */
+int Tensor::rows()const{
+    return this->r;
+}
+
+/** 
+ * Cols 
+ * 
+ * @return the number of columns in the tensor
+ */
+int Tensor::cols()const{
+    return this->c;
+}
+
+/** 
+ * Depth 
+ * 
+ * @return the depth of the tensor
+ */
+int Tensor::depth()const{
+    return this->d;
+}
+    
+/** 
+ * Get minimum 
+ * 
+ * Compute the minimum value considering a particular index in the third dimension
+ * 
+ * @return the minimum of data( , , k)
+ */
+float Tensor::getMin(int k)const{
+    //Controllo che k sia in range [0, d]
+    if(k >= 0 && k < this->d){
+        float min = (*this)(0,0,0); //Minimo del campo k
+
+        for(int i = 0; i < r; i++)
+            for(int j = 0; j < c; j++)
+                if((*this)(i, j, k) < min)
+                    min = (*this)(i, j, k);
+
+        return min;
+    }
+    else
+        throw index_out_of_bound();
+}
+
+/** 
+ * Get maximum 
+ * 
+ * Compute the maximum value considering a particular index in the third dimension
+ * 
+ * @return the maximum of data( , , k)
+ */
+float Tensor::getMax(int k)const{
+    //Controllo che k sia in range [0, d]
+    if(k >= 0 && k < this->d){
+        float max = (*this)(0,0,0); //Massimo del campo k
+
+        for(int i = 0; i < r; i++)
+            for(int j = 0; j < c; j++)
+                if((*this)(i, j, k) > max)
+                    max = (*this)(i, j, k);
+
+        return max;
+    }
+    else
+        throw index_out_of_bound();
+}
+
+/** 
+ * showSize
+ * 
+ * shows the dimensions of the tensor on the standard output.
+ * 
+ * The format is the following:
+ * rows" x "colums" x "depth
+ * 
+ */
+void Tensor::showSize()const{
+    std::cout << this->r << "x" << this->c << "x" << this->d << std::endl;
+}
+    
+/* IOSTREAM */
+
+/**
+ * Operator overloading <<
+ * 
+ * Use the overaloading of << to show the content of the tensor.
+ * 
+ * You are free to chose the output format, btw we suggest you to show the tensor by layer.
+ * 
+ * [..., ..., 0]
+ * [..., ..., 1]
+ * ...
+ * [..., ..., k]
+ */
+ostream& operator<< (ostream& stream, const Tensor & obj){
+    if(obj.r==0 || obj.c==0 || obj.d==0) stream<<"Il tensore non e' inizializzato";
+
+    for(int k = 0; k < obj.d; k++)//scorro per la profondita'sore non e' inizzializzato";
+    {
+        stream <<"LIVELLO " << k << endl;//aggiungo un identificatore che mi definisce a che profondità sono
+        for(int j = 0; j < obj.c; j++)//scorro per la colonne
+        {
+            for(int i = 0; i < obj.r; i++)//scorro per la righe
+                stream << obj(i, j, k) << "\t";     //aggiungo il valore allo stream e lo tabulo per seguire le colonne
+
+            stream << endl;//vado a capo ad ogni colonna
+        }
+        stream << endl;//vado a capo ad ogni livello di profondità e salto una riga
+    }
+    
+    return stream;
+}
+
+/**
+ * Reading from file
+ * 
+ * Load the content of a tensor from a textual file.
+ * 
+ * The file should have this structure: the first three lines provide the dimensions while 
+ * the following lines contains the actual data by channel.
+ * 
+ * For example, a tensor of size 4x3x2 will have the following structure:
+ * 4
+ * 3
+ * 2
+ * data(0,0,0)
+ * data(0,1,0)
+ * data(0,2,0)
+ * data(1,0,0)
+ * data(1,1,0)
+ * .
+ * .
+ * .
+ * data(3,1,1)
+ * data(3,2,1)
+ * 
+ * if the file is not reachable throw unable_to_read_file()
+ * 
+ * @param filename the filename where the tensor is stored
+ */
+void Tensor::read_file(string filename){
+    ifstream file {filename};
+
+    //Controllo di aver aperto il file
+    if(!file)
+        throw unable_to_read_file();
+
+    //Elimina il vettore data se esiste
+    this->~Tensor();    
+    
+    //Leggo dal file le dimensioni del tensore
+    file >> this->r >> this->c >> this->d;
+
+    //Creo il vettore dei dati
+    data = new float[this->r * this->c * this->d];
+
+    //Scrivo i dati del tensore nel file
+    for(int k = 0; k < this->d; k++)
+        for(int i = 0; i < this->r; i++)
+            for(int j = 0; j < this->c; j++)
+                file >> this->operator()(i,j,k);
+                
+    //Controllo se e' terminato il file
+    if(!file.eof())
+        throw dimension_mismatch();
+        
+    file.close();
+}
+
+/**
+ * Write the tensor to a file
+ * 
+ * Write the content of a tensor to a textual file.
+ * 
+ * The file should have this structure: the first three lines provide the dimensions while 
+ * the following lines contains the actual data by channel.
+ * 
+ * For example, a tensor of size 4x3x2 will have the following structure:
+ * 4
+ * 3
+ * 2
+ * data(0,0,0)
+ * data(0,1,0)
+ * data(0,2,0)
+ * data(1,0,0)
+ * data(1,1,0)
+ * .
+ * .
+ * .
+ * data(3,1,1)
+ * data(3,2,1)
+ * 
+ * @param filename the filename where the tensor should be stored
+ */
+void Tensor::write_file(string filename){
+    ofstream file{filename, ios::trunc};
+
+    //Controllo che il vettore sia inizializzato
+    if(this->r == 0 || this->c == 0|| this->d == 0)
+        throw tensor_not_initialized();
+
+    //Scrivo nel file le dimensioni del tensore
+    file << this->r << std::endl;
+    file << this->c << std::endl;
+    file << this->d << std::endl;
+
+    //Scrivo nel file i dati del tensore
+    for(int k = 0; k < this->d; k++)
+        for(int i = 0; i < this->r; i++)
+            for(int j = 0; j < this->c; j++){
+                file << this->operator()(i, j, k);
+                if(i != this->r -1 && j != this->c -1 && k != this->d -1)
+                    file << std::endl;
+            }
+
+    file.close();
 }
