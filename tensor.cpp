@@ -448,7 +448,9 @@ void Tensor::clamp(float low, float high) {
  *
  * where max(k) and min(k) are the maximum and minimum value in the k-th channel.
  *
- * new_max is the new value for the maximum
+ * new_max is the new maximum value for each channel
+ * 
+ * - if max(k) and min(k) are the same, then the entire k-th channel is set to new_max.
  *
  * @param new_max New maximum vale
  */
@@ -459,15 +461,15 @@ void Tensor::rescale(float new_max) {
 			int min = this->getMin(k); //Minimo sulla profondita' k
 			int max = this->getMax(k); //Massimo sulla profondita' k
 
-			//Controllo che il minimo e il massimo siano diversi
-			if (min == max)
-				throw unknown_operation();
-
 			for (int i = 0; i < this->r; i++)
-				for (int j = 0; j < this->c; j++)
-					(*this)(i, j, k) = (((*this)(i, j, k) - min) / (max - min)) * new_max;
+				for (int j = 0; j < this->c; j++){
+					//Controllo che il minimo e il massimo siano diversi
+					if(min != max)
+						(*this)(i, j, k) = (((*this)(i, j, k) - min) / (max - min)) * new_max;
+					else
+						(*this)(i, j, k) = new_max;
+				}
 		}
-
 	}
 	else
 		throw tensor_not_initialized();
