@@ -8,6 +8,10 @@
 
 using namespace std;
 
+DAISGram::DAISGram(){}
+
+DAISGram::~DAISGram(){data.~Tensor();}
+
 /**
  * Load a bitmap from file
  *
@@ -73,4 +77,72 @@ void DAISGram::generate_random(int h, int w, int d){
     data = Tensor(h,w,d,0.0);
     data.init_random(128,50);
     data.rescale(255);
+}
+
+/**
+ * Get rows
+ *
+ * @return returns the number of rows in the image
+ */
+int DAISGram::getRows(){return data.rows();}
+
+/**
+ * Get columns
+ *
+ * @return returns the number of columns in the image
+ */
+int DAISGram::getCols(){return data.cols();}
+
+/**
+ * Get depth
+ *
+ * @return returns the number of channels in the image
+ */
+int DAISGram::getDepth(){return data.depth();}
+
+/**
+ * Brighten the image
+ * 
+ * It sums the bright variable to all the values in the image.
+ * 
+ * Before returning the image, the corresponding tensor should be clamped in [0,255]
+ * 
+ * @param bright the amount of bright to add (if negative the image gets darker)
+ * @return returns a new DAISGram containing the modified object
+ */
+DAISGram DAISGram::brighten(float bright)
+{
+    DAISGram rit;
+    rit.data = data + bright;//carico a nel valore di ritorno e gli sommo la luminosità 
+
+    rit.data.clamp(0, 255);//aggiusto i valori usciti dal range tra 0 e 255 
+
+    return rit;
+}
+
+/**
+ * Create a grayscale version of the object
+ * 
+ * A grayscale image is produced by substituting each pixel with its average on all the channel
+ *  
+ * @return returns a new DAISGram containing the modified object
+ */
+DAISGram DAISGram::grayscale()
+{
+    int s{0};
+    Tensor a{data.rows(),data.cols(), data.depth(), 0};//creo il tensore che andra' nel valore di ritorno 
+    DAISGram rit;
+    rit.data = a;//carico a nel valore di ritorno 
+
+    for (int i = 0; i < data.rows(); i++)     //scorro per le righe
+		for (int j = 0; j < data.cols(); j++)//scorro per le colonne
+        {
+			for (int k = 0; k < data.depth(); k++) s += data(i, j, k);//scorro per la profontita' del tensore per calcolare la media
+        
+            s /= data.depth();//divido per il numero di valori sommati
+
+            for (int k = 0; k < data.depth(); k++)  rit.data(i, j, k) = s;//scorro per la profontita' del tensore per inserire il valore appena calcolato
+        }
+
+    return rit;
 }
