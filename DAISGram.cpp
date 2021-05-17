@@ -347,7 +347,33 @@ DAISGram DAISGram::blend(const DAISGram& rhs, float alpha) {
  * @param threshold[] The threshold to add/remove for each color (threshold[0] = RED, threshold[1]=GREEN, threshold[2]=BLUE) 
  * @return returns a new DAISGram containing the result.
  */  
-DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){throw method_not_implemented();}
+DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){
+	if(this->data.rows() != 0 || this->data.cols() != 0 || this->data.depth() != 0)
+		if(this->data.rows() == bkg.data.rows() && this->data.cols() == bkg.data.cols() && this->data.depth() == bkg.data.depth()){
+			Tensor t(this->data);
+			DAISGram result;
+			result.data = t;
+			for(int i = 0; i < this->data.rows(); i++)
+				for(int j = 0; j < this->data.cols(); j++){
+					int k = 0;
+					bool flag = true;
+					while (k < this->data.depth() && flag){
+						if(data(i, j, k) < (rgb[k] - threshold[k]) || data(i, j , k) > (rgb[k] + threshold[k]))
+							flag = false;
+						k++;
+					}
+					if(flag){
+						for(k = 0; k < result.data.depth(); k++)
+							result.data(i, j, k) = bkg.data(i, j, k);
+					}
+				}
+			return result;
+		}
+		else
+			throw dimension_mismatch();
+	else
+		throw tensor_not_initialized();
+}
 
 /**
  * Equalize
@@ -358,7 +384,37 @@ DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){thr
  * 
  * @return returns a new DAISGram containing the equalized image.
  */  
-DAISGram DAISGram::equalize(){throw method_not_implemented();}
+DAISGram DAISGram::equalize(){
+	if(this->data.rows() != 0 || this->data.cols() != 0 || this->data.depth() != 0){
+		DAISGram temp = this->brighten(0);
+		Tensor t(256, 1, 1);
+		for(int i = 0; i < temp.data.rows(); i++)
+			for(int j = 0; j < temp.data.cols(); j++)
+				t(temp.data(i, j, 0), 0, 0)++;
+		for(int i = 1; i < 256; i++)
+			t(i, 0, 0) += t(i-1, 0, 0);
+
+		int min = 0;
+		int i = 0;
+		while (min < 1 && i < 256){
+			if(t(i, 0, 0) != 0)
+				min = t(i, 0, 0);
+			i++;
+		}
+		int divider = (temp.data.rows() * temp.data.cols()) - min;
+		
+		for(i = 0; i < temp.data.rows(); i++)
+			for(int j = 0; j < temp.data.cols(); j++){
+				temp.data(i, j, 0) = round((t(temp.data(i, j, 0), 0, 0)-min) / divider * 255);
+				for(int k = 1; k < temp.data.depth(); k++)
+					temp.data(i, j, k) = temp.data(i, j, 0);
+			}
+
+		return temp;
+	}
+	else
+		throw tensor_not_initialized();
+}
 
 /**
  * Generate Random Image
