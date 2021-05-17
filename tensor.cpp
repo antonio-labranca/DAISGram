@@ -642,15 +642,15 @@ Tensor Tensor::convolve(const Tensor& f) const {
 		for (int j = 0; j < p.r - f.r + 1; j++) {
 			//per scorrere blocchi in profondità
 			for (int k = 0; k < this->d; k++) {
-				float somma = 0;
+				int somma = 0;
 				//per scorrere le sotto-matrici
-				for (int r = 0; r < f.r; r++) {
-					for (int c = 0; c < f.c; c++) {
-						somma += p(r + i, j + c, k) * f(r, c, k);
+				for (int c = 0; c < f.c; c++) {
+					for (int r = 0; r < f.r; r++) {
+						somma += p(r + j, c + i, k) * f(r, c, k);
 					}
 				}
 				//pongo all'interno del tensore ris i risultati della convoluzione
-				ris(i, j, k) = somma;
+				ris(j, i, k) = somma;
 			}
 		}
 	}
