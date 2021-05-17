@@ -10,7 +10,7 @@ using namespace std;
 
 DAISGram::DAISGram() {}
 
-DAISGram::~DAISGram() { data.~Tensor(); }
+DAISGram::~DAISGram() {}
 
 /**
  * Load a bitmap from file
@@ -60,23 +60,6 @@ void DAISGram::save_image(string filename) {
 
 	img.write(filename);
 
-}
-
-
-/**
- * Generate Random Image
- *
- * Generate a random image from nois
- *
- * @param h height of the image
- * @param w width of the image
- * @param d number of channels
- * @return returns a new DAISGram containing the generated image.
- */
-void DAISGram::generate_random(int h, int w, int d) {
-	data = Tensor(h, w, d, 0.0);
-	data.init_random(128, 50);
-	data.rescale(255);
 }
 
 /**
@@ -146,22 +129,144 @@ DAISGram DAISGram::grayscale()
 
 	return rit;
 }
+
 /**
-* Smooth the image
-*
-* This function remove the noise in an image using convolution and an average filter
-* of size h*h:
-*
-* c = 1/(h*h)
-*
-* filter[3][3]
-*    c c c
-		*    c c c
-		*    c c c
-		*
-		* @param h the size of the filter
-		* @return returns a new DAISGram containing the modified object
-		*/
+ * Create a Warhol effect on the image
+ * 
+ * This function returns a composition of 4 different images in which the:
+ * - top left is the original image
+ * - top right is the original image in which the Red and Green channel are swapped
+ * - bottom left is the original image in which the Blue and Green channel are swapped
+ * - bottom right is the original image in which the Red and Blue channel are swapped
+ *  
+ * The output image is twice the dimensions of the original one.
+ * 
+ * @return returns a new DAISGram containing the modified object
+ */
+DAISGram DAISGram::warhol(){
+    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
+        throw tensor_not_initialized();
+    
+    Tensor redToGreen(this->data);
+    Tensor blueToGreen(this->data);
+    Tensor redToBlue(this->data);
+    float swap;
+
+    for(int i = 0; i < data.rows(); i++)
+        for(int j = 0; j < data.cols(); j++){
+            swap = redToGreen(i,j, 0);
+            redToGreen(i, j, 0) = redToGreen(i, j, 1);
+            redToGreen(i, j, 1) = swap;
+
+            swap = blueToGreen(i, j, 2);
+            blueToGreen(i, j, 2) = blueToGreen(i, j, 1);
+            blueToGreen(i, j, 1) = swap;
+
+            swap = redToBlue(i, j, 0);
+            redToBlue(i, j, 0) = redToBlue(i, j, 2);
+            redToBlue(i, j, 2) = swap;
+        }
+    
+    Tensor top = data.concat(redToGreen, 1);
+    Tensor bottom = blueToGreen.concat(redToBlue, 1);
+
+    DAISGram result;
+    result.data = top.concat(bottom, 0);
+
+    return result;
+}
+
+/**
+ * Sharpen the image
+ * 
+ * This function makes the image sharper by convolving it with a sharp filter
+ * 
+ * filter[3][3]
+ *    0  -1  0
+ *    -1  5 -1
+ *    0  -1  0
+ *  
+ * Before returning the image, the corresponding tensor should be clamped in [0,255]
+ * 
+ * @return returns a new DAISGram containing the modified object
+ */
+DAISGram DAISGram::sharpen(){
+    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
+        throw tensor_not_initialized();
+    
+    DAISGram result;
+
+    Tensor filter(3, 3, data.depth());
+    for(int k = 0; k < filter.depth(); k++){
+        filter(0, 1, k) = -1;
+        filter(1, 0, k) = -1;
+        filter(1, 1, k) = 5;
+        filter(1, 2, k) = -1;
+        filter(2, 1, k) = -1;
+    }
+
+    result.data = data.convolve(filter);
+    result.data.clamp(0, 255);
+
+    return result;
+}
+
+
+/**
+ * Emboss the image
+ * 
+ * This function makes the image embossed (a light 3D effect) by convolving it with an
+ * embossing filter
+ * 
+ * filter[3][3]
+ *    -2 -1  0
+ *    -1  1  1
+ *     0  1  2
+ * 
+ * Before returning the image, the corresponding tensor should be clamped in [0,255]
+ *  
+ * @return returns a new DAISGram containing the modified object
+ */
+DAISGram DAISGram::emboss(){
+    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
+        throw tensor_not_initialized();
+    
+    DAISGram result;
+
+    Tensor filter(3, 3, data.depth());
+    for(int k = 0; k < filter.depth(); k++){
+        filter(0, 0, k) = -2;
+        filter(0, 1, k) = -1;
+        filter(1, 0, k) = -1;
+        filter(1, 1, k) = 1;
+        filter(1, 2, k) = 1;
+        filter(2, 1, k) = 1;
+        filter(2, 2, k) = 2;
+    }
+
+    result.data = data.convolve(filter);
+    result.data.clamp(0, 255);
+
+    return result;
+}
+
+
+/**
+ * Smooth the image
+ *
+ * This function remove the noise in an image using convolution and an average filter
+ * of size h*h:
+ *
+ * c = 1/(h*h)
+ *
+ * filter[3][3]
+ *    c c c
+ *    c c c
+ *    c c c
+ *
+ * @param h the size of the filter
+ * @return returns a new DAISGram containing the modified object
+ */
 DAISGram DAISGram::smooth(int h) {
 	float c = static_cast<float>(1.0 / (h * h));
 	Tensor filtro(3, 3, 3, c);
@@ -171,24 +276,25 @@ DAISGram DAISGram::smooth(int h) {
 	ris.data.rescale(255);
 	return ris;
 }
+
 /**
-* Edges of an image
-*
-* This function extract the edges of an image by using the convolution
-* operator and the following filter
-*
-*
-* filter[3][3]
-* -1  -1  -1
-* -1   8  -1
-* -1  -1  -1
-*
-* Remeber to convert the image to grayscale before running the convolution.
-*
-* Before returning the image, the corresponding tensor should be clamped in [0,255]
-*	
-* @return returns a new DAISGram containing the modified object
-*/
+ * Edges of an image
+ *
+ * This function extract the edges of an image by using the convolution
+ * operator and the following filter
+ *
+ *
+ * filter[3][3]
+ * -1  -1  -1
+ * -1   8  -1
+ * -1  -1  -1
+ *
+ * Remeber to convert the image to grayscale before running the convolution.
+ *
+ * Before returning the image, the corresponding tensor should be clamped in [0,255]
+ *	
+ * @return returns a new DAISGram containing the modified object
+ */
 DAISGram DAISGram::edge() {
 	DAISGram ris;
 	ris = this->grayscale();
@@ -202,20 +308,20 @@ DAISGram DAISGram::edge() {
 }
 
 /**
-* Blend with another image
-*
-* This function generate a new DAISGram which is the composition
-* of the object and another DAISGram object
-*
-* The composition follows this convex combination:
-* results = alpha*this + (1-alpha)*rhs
-*
-* rhs and this obejct MUST have the same dimensions.
-*
-* @param rhs The second image involved in the blending
-* @param alpha The parameter of the convex combination
-* @return returns a new DAISGram containing the blending of the two images.
-*/
+ * Blend with another image
+ *
+ * This function generate a new DAISGram which is the composition
+ * of the object and another DAISGram object
+ *
+ * The composition follows this convex combination:
+ * results = alpha*this + (1-alpha)*rhs
+ *
+ * rhs and this obejct MUST have the same dimensions.
+ *
+ * @param rhs The second image involved in the blending
+ * @param alpha The parameter of the convex combination
+ * @return returns a new DAISGram containing the blending of the two images.
+ */
 DAISGram DAISGram::blend(const DAISGram& rhs, float alpha) {
 	DAISGram ris;
 	if (this->data.cols() != rhs.data.cols() || this->data.rows() != rhs.data.rows() || this->data.depth() != rhs.data.depth())
@@ -225,4 +331,47 @@ DAISGram DAISGram::blend(const DAISGram& rhs, float alpha) {
 	Tensor tot = this->data * alpha + rhs.data * (1 - alpha);
 	ris.data = tot;
 	return ris;
+}
+
+/**
+ * Green Screen
+ * 
+ * This function substitutes a pixel with the corresponding one in a background image 
+ * if its colors are in the surrounding (+- threshold) of a given color (rgb).
+ * 
+ * (rgb - threshold) <= pixel <= (rgb + threshold)
+ * 
+ * 
+ * @param bkg The second image used as background
+ * @param rgb[] The color to substitute (rgb[0] = RED, rgb[1]=GREEN, rgb[2]=BLUE) 
+ * @param threshold[] The threshold to add/remove for each color (threshold[0] = RED, threshold[1]=GREEN, threshold[2]=BLUE) 
+ * @return returns a new DAISGram containing the result.
+ */  
+DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){throw method_not_implemented();}
+
+/**
+ * Equalize
+ * 
+ * Stretch the distribution of colors of the image in order to use the full range of intesities.
+ * 
+ * See https://it.wikipedia.org/wiki/Equalizzazione_dell%27istogramma
+ * 
+ * @return returns a new DAISGram containing the equalized image.
+ */  
+DAISGram DAISGram::equalize(){throw method_not_implemented();}
+
+/**
+ * Generate Random Image
+ *
+ * Generate a random image from nois
+ *
+ * @param h height of the image
+ * @param w width of the image
+ * @param d number of channels
+ * @return returns a new DAISGram containing the generated image.
+ */
+void DAISGram::generate_random(int h, int w, int d) {
+	data = Tensor(h, w, d, 0.0);
+	data.init_random(128, 50);
+	data.rescale(255);
 }
