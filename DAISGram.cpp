@@ -146,3 +146,83 @@ DAISGram DAISGram::grayscale()
 
     return rit;
 }
+/**
+		* Smooth the image
+		*
+		* This function remove the noise in an image using convolution and an average filter
+		* of size h*h:
+		*
+		* c = 1/(h*h)
+		*
+		* filter[3][3]
+		*    c c c
+		*    c c c
+		*    c c c
+		*
+		* @param h the size of the filter
+		* @return returns a new DAISGram containing the modified object
+		*/
+DAISGram DAISGram::smooth(int h) {
+	float c = static_cast<float>(1.0 / (h * h));
+	Tensor filtro(3, 3, 3, c);
+	//ha copiato un imm
+	DAISGram ris;
+	ris.data = this->data.convolve(filtro);
+	ris.data.rescale(255);
+	return ris;
+}
+/**
+		 * Edges of an image
+		 *
+		 * This function extract the edges of an image by using the convolution
+		 * operator and the following filter
+		 *
+		 *
+		 * filter[3][3]
+		 * -1  -1  -1
+		 * -1   8  -1
+		 * -1  -1  -1
+		 *
+		 * Remeber to convert the image to grayscale before running the convolution.
+		 *
+		 * Before returning the image, the corresponding tensor should be clamped in [0,255]
+		 *
+		 * @return returns a new DAISGram containing the modified object
+		 */
+DAISGram DAISGram::edge() {
+	DAISGram ris;
+	ris = this->grayscale();
+	Tensor filtro(3, 3, 3, -1);
+	filtro(1, 1, 0) = 8;
+	filtro(1, 1, 1) = 8;
+	filtro(1, 1, 2) = 8;
+	ris.data = ris.data.convolve(filtro);
+	ris.data.clamp(0, 255);
+	return ris;
+}
+
+/**
+		* Blend with another image
+		*
+		* This function generate a new DAISGram which is the composition
+		* of the object and another DAISGram object
+		*
+		* The composition follows this convex combination:
+		* results = alpha*this + (1-alpha)*rhs
+		*
+		* rhs and this obejct MUST have the same dimensions.
+		*
+		* @param rhs The second image involved in the blending
+		* @param alpha The parameter of the convex combination
+		* @return returns a new DAISGram containing the blending of the two images.
+		*/
+DAISGram DAISGram::blend(const DAISGram& rhs, float alpha) {
+	DAISGram ris;
+	if (this->data.cols() != rhs.data.cols() || this->data.rows() != rhs.data.rows() || this->data.depth() != rhs.data.depth())
+		throw dimension_mismatch();
+	if (alpha < 0 || alpha>1)
+		throw unknown_operation();
+	Tensor tot = this->data * alpha + rhs.data * (1 - alpha);
+	ris.data = tot;
+	return ris;
+}
