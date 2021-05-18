@@ -71,8 +71,8 @@ Tensor::~Tensor() {
  * @return the value at location [i][j][k]
  */
 float Tensor::operator()(int i, int j, int k) const {
-	//Controllo se le dimensioni del tensore sono in range [0, r[ x [0, c[ x [0, d[
-	if (i >= 0 && i < this->r && j >= 0 && j < this->c && k >= 0 && k < this->d)
+	//Controllo se le dimensioni del tensore sono in range [0, r] x [0, c] x [0, d]
+	if (i >= 0 && i <= this->r && j >= 0 && j <= this->c && k >= 0 && k <= this->d)
 		return data[(i * this->c + j) * this->d + k];
 	else
 		throw index_out_of_bound();
@@ -89,8 +89,8 @@ float Tensor::operator()(int i, int j, int k) const {
  * @return the pointer to the location [i][j][k]
  */
 float& Tensor::operator()(int i, int j, int k) {
-	//Controllo se le dimensioni del tensore sono in range [0, r[ x [0, c[ x [0, d[
-	if (i >= 0 && i < this->r && j >= 0 && j < this->c && k >= 0 && k < this->d)
+	//Controllo se le dimensioni del tensore sono in range [0, r] x [0, c] x [0, d]
+	if (i >= 0 && i <= this->r && j >= 0 && j <= this->c && k >= 0 && k <= this->d)
 		return data[(i * this->c + j) * this->d + k];
 	else
 		throw index_out_of_bound();
@@ -646,6 +646,7 @@ Tensor Tensor::convolve(const Tensor& f) const {
 				//per scorrere le sotto-matrici
 				for (int c = 0; c < f.c; c++) {
 					for (int r = 0; r < f.r; r++) {
+						//eseguo l'operazione
 						somma += p(r + j, c + i, k) * f(r, c, k);
 					}
 				}
