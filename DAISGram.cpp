@@ -163,8 +163,10 @@ DAISGram DAISGram::grayscale()
 		* @return returns a new DAISGram containing the modified object
 		*/
 DAISGram DAISGram::smooth(int h) {
+	if (h == 0)
+		throw unknown_operation();
 	float c = static_cast<float>(1.0 / (h * h));
-	Tensor filtro(3, 3, 3, c);
+	Tensor filtro(h, h, data.depth(), c);
 	//ha copiato un imm
 	DAISGram ris;
 	ris.data = this->data.convolve(filtro);
@@ -192,7 +194,7 @@ DAISGram DAISGram::smooth(int h) {
 DAISGram DAISGram::edge() {
 	DAISGram ris;
 	ris = this->grayscale();
-	Tensor filtro(3, 3, 3, -1);
+	Tensor filtro(3, 3, data.depth(), -1);
 	filtro(1, 1, 0) = 8;
 	filtro(1, 1, 1) = 8;
 	filtro(1, 1, 2) = 8;

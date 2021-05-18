@@ -642,7 +642,7 @@ Tensor Tensor::convolve(const Tensor& f) const {
 		for (int j = 0; j < p.r - f.r + 1; j++) {
 			//per scorrere blocchi in profondità
 			for (int k = 0; k < this->d; k++) {
-				int somma = 0;
+				float somma = 0;
 				//per scorrere le sotto-matrici
 				for (int c = 0; c < f.c; c++) {
 					for (int r = 0; r < f.r; r++) {
