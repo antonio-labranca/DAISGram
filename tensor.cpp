@@ -122,6 +122,61 @@ Tensor::Tensor(const Tensor& that) {
 }
 
 /**
+     * Operator overloading ==
+     * 
+     * It performs the point-wise equality check between two Tensors.
+     * 
+     * The equality check between floating points cannot be simply performed using the 
+     * operator == but it should take care on their approximation.
+     * 
+     * This approximation is known as rounding (do you remember "Architettura degli Elaboratori"?)
+     *  
+     * For example, given a=0.1232 and b=0.1233 they are 
+     * - the same, if we consider a rounding with 1, 2 and 3 decimals 
+     * - different when considering 4 decimal points. In this case b>a
+     * 
+     * So, given two floating point numbers "a" and "b", how can we check their equivalence? 
+     * through this formula:
+     * 
+     * a ?= b if and only if |a-b|<EPSILON
+     * 
+     * where EPSILON is fixed constant (defined at the beginning of this header file)
+     * 
+     * Two tensors A and B are the same if:
+     * A[i][j][k] == B[i][j][k] for all i,j,k 
+     * where == is the above formula.
+     * 
+     * The two tensors must have the same size otherwise throw a dimension_mismatch()
+     * 
+     * @return returns true if all their entries are "floating" equal
+     */
+    bool Tensor::operator==(const Tensor& rhs) const{
+		bool flag = true;
+		if(this->data && rhs.data){
+			if(this->r == rhs.r && this->c == rhs.c && this->d == rhs.d){
+				int i{0}, j{0}, k{0};
+
+				while(i < this->r && flag){
+					while (j < this->c && flag){
+						while(k < this->d && flag){
+							if((*this)(i, j, k) != rhs(i, j, k))
+								flag = false;
+							k++;
+						}
+						j++;
+					}
+					i++;
+				}
+			}
+			else
+				flag = false;
+		}
+		else
+			flag = false;
+		return flag;
+	}
+
+/**
  * Operator overloading -
  *
  * It performs the point-wise difference between two Tensors.
