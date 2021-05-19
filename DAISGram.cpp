@@ -10,7 +10,7 @@ using namespace std;
 
 DAISGram::DAISGram() {}
 
-DAISGram::~DAISGram() { data.~Tensor(); }
+DAISGram::~DAISGram() {}
 
 /**
  * Load a bitmap from file
