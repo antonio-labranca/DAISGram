@@ -62,23 +62,6 @@ void DAISGram::save_image(string filename) {
 
 }
 
-
-/**
- * Generate Random Image
- *
- * Generate a random image from nois
- *
- * @param h height of the image
- * @param w width of the image
- * @param d number of channels
- * @return returns a new DAISGram containing the generated image.
- */
-void DAISGram::generate_random(int h, int w, int d) {
-	data = Tensor(h, w, d, 0.0);
-	data.init_random(128, 50);
-	data.rescale(255);
-}
-
 /**
  * Get rows
  *
@@ -146,6 +129,127 @@ DAISGram DAISGram::grayscale()
 
 	return rit;
 }
+
+/**
+ * Create a Warhol effect on the image
+ * 
+ * This function returns a composition of 4 different images in which the:
+ * - top left is the original image
+ * - top right is the original image in which the Red and Green channel are swapped
+ * - bottom left is the original image in which the Blue and Green channel are swapped
+ * - bottom right is the original image in which the Red and Blue channel are swapped
+ *  
+ * The output image is twice the dimensions of the original one.
+ * 
+ * @return returns a new DAISGram containing the modified object
+ */
+DAISGram DAISGram::warhol(){
+    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
+        throw tensor_not_initialized();
+    
+    Tensor redToGreen(this->data);
+    Tensor blueToGreen(this->data);
+    Tensor redToBlue(this->data);
+    float swap;
+
+    for(int i = 0; i < data.rows(); i++)
+        for(int j = 0; j < data.cols(); j++){
+            swap = redToGreen(i,j, 0);
+            redToGreen(i, j, 0) = redToGreen(i, j, 1);
+            redToGreen(i, j, 1) = swap;
+
+            swap = blueToGreen(i, j, 2);
+            blueToGreen(i, j, 2) = blueToGreen(i, j, 1);
+            blueToGreen(i, j, 1) = swap;
+
+            swap = redToBlue(i, j, 0);
+            redToBlue(i, j, 0) = redToBlue(i, j, 2);
+            redToBlue(i, j, 2) = swap;
+        }
+    
+    Tensor top = data.concat(redToGreen, 1);
+    Tensor bottom = blueToGreen.concat(redToBlue, 1);
+
+    DAISGram result;
+    result.data = top.concat(bottom, 0);
+
+    return result;
+}
+
+/**
+ * Sharpen the image
+ * 
+ * This function makes the image sharper by convolving it with a sharp filter
+ * 
+ * filter[3][3]
+ *    0  -1  0
+ *    -1  5 -1
+ *    0  -1  0
+ *  
+ * Before returning the image, the corresponding tensor should be clamped in [0,255]
+ * 
+ * @return returns a new DAISGram containing the modified object
+ */
+DAISGram DAISGram::sharpen(){
+    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
+        throw tensor_not_initialized();
+    
+    DAISGram result;
+
+    Tensor filter(3, 3, data.depth());
+    for(int k = 0; k < filter.depth(); k++){
+        filter(0, 1, k) = -1;
+        filter(1, 0, k) = -1;
+        filter(1, 1, k) = 5;
+        filter(1, 2, k) = -1;
+        filter(2, 1, k) = -1;
+    }
+
+    result.data = data.convolve(filter);
+    result.data.clamp(0, 255);
+
+    return result;
+}
+
+
+/**
+ * Emboss the image
+ * 
+ * This function makes the image embossed (a light 3D effect) by convolving it with an
+ * embossing filter
+ * 
+ * filter[3][3]
+ *    -2 -1  0
+ *    -1  1  1
+ *     0  1  2
+ * 
+ * Before returning the image, the corresponding tensor should be clamped in [0,255]
+ *  
+ * @return returns a new DAISGram containing the modified object
+ */
+DAISGram DAISGram::emboss(){
+    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
+        throw tensor_not_initialized();
+    
+    DAISGram result;
+
+    Tensor filter(3, 3, data.depth());
+    for(int k = 0; k < filter.depth(); k++){
+        filter(0, 0, k) = -2;
+        filter(0, 1, k) = -1;
+        filter(1, 0, k) = -1;
+        filter(1, 1, k) = 1;
+        filter(1, 2, k) = 1;
+        filter(2, 1, k) = 1;
+        filter(2, 2, k) = 2;
+    }
+
+    result.data = data.convolve(filter);
+    result.data.clamp(0, 255);
+
+    return result;
+}
+
 /**
 * Smooth the image
 *
@@ -156,12 +260,12 @@ DAISGram DAISGram::grayscale()
 *
 * filter[3][3]
 *    c c c
-		*    c c c
-		*    c c c
-		*
-		* @param h the size of the filter
-		* @return returns a new DAISGram containing the modified object
-		*/
+*    c c c
+*    c c c
+*
+* @param h the size of the filter
+* @return returns a new DAISGram containing the modified object
+*/
 DAISGram DAISGram::smooth(int h) {
 	if (h == 0)
 		throw unknown_operation();
@@ -238,4 +342,20 @@ DAISGram DAISGram::blend(const DAISGram& rhs, float alpha) {
 	Tensor tot = this->data * alpha + rhs.data * (1 - alpha);
 	ris.data = tot;
 	return ris;
+}
+
+/**
+ * Generate Random Image
+ *
+ * Generate a random image from nois
+ *
+ * @param h height of the image
+ * @param w width of the image
+ * @param d number of channels
+ * @return returns a new DAISGram containing the generated image.
+ */
+void DAISGram::generate_random(int h, int w, int d) {
+	data = Tensor(h, w, d, 0.0);
+	data.init_random(128, 50);
+	data.rescale(255);
 }
