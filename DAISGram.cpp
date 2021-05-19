@@ -345,6 +345,59 @@ DAISGram DAISGram::blend(const DAISGram& rhs, float alpha) {
 }
 
 /**
+ * Green Screen
+ * 
+ * This function substitutes a pixel with the corresponding one in a background image 
+ * if its colors are in the surrounding (+- threshold) of a given color (rgb).
+ * 
+ * (rgb - threshold) <= pixel <= (rgb + threshold)
+ * 
+ * 
+ * @param bkg The second image used as background
+ * @param rgb[] The color to substitute (rgb[0] = RED, rgb[1]=GREEN, rgb[2]=BLUE) 
+ * @param threshold[] The threshold to add/remove for each color (threshold[0] = RED, threshold[1]=GREEN, threshold[2]=BLUE) 
+ * @return returns a new DAISGram containing the result.
+ */  
+DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){
+	if(this->data.rows() != 0 || this->data.cols() != 0 || this->data.depth() != 0)
+		if(this->data.rows() == bkg.data.rows() && this->data.cols() == bkg.data.cols() && this->data.depth() == bkg.data.depth()){
+			Tensor t(this->data);
+			DAISGram result;
+			result.data = t;
+			for(int i = 0; i < this->data.rows(); i++)
+				for(int j = 0; j < this->data.cols(); j++){
+					int k = 0;
+					bool flag = true;
+					while (k < this->data.depth() && flag){
+						if(data(i, j, k) < (rgb[k] - threshold[k]) || data(i, j , k) > (rgb[k] + threshold[k]))
+							flag = false;
+						k++;
+					}
+					if(flag){
+						for(k = 0; k < result.data.depth(); k++)
+							result.data(i, j, k) = bkg.data(i, j, k);
+					}
+				}
+			return result;
+		}
+		else
+			throw dimension_mismatch();
+	else
+		throw tensor_not_initialized();
+}
+
+/**
+ * Equalize
+ * 
+ * Stretch the distribution of colors of the image in order to use the full range of intesities.
+ * 
+ * See https://it.wikipedia.org/wiki/Equalizzazione_dell%27istogramma
+ * 
+ * @return returns a new DAISGram containing the equalized image.
+ */  
+DAISGram DAISGram::equalize(){throw method_not_implemented();}
+
+/**
  * Generate Random Image
  *
  * Generate a random image from nois
