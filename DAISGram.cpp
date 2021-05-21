@@ -395,7 +395,37 @@ DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){
  * 
  * @return returns a new DAISGram containing the equalized image.
  */  
-DAISGram DAISGram::equalize(){throw method_not_implemented();}
+DAISGram DAISGram::equalize()
+{
+    DAISGram r;
+    Tensor b{data};
+    float m{0.0};
+    r.data = b;
+
+    for(int k = 0; k<data.depth() ; k++)
+    {
+        Tensor a{2,256,1,0};
+
+        for(int j = 0; j<data.rows(); j++)
+            for(int i = 0; i<data.cols(); i++)a(0,data(j,i,k),0)++;//creo istogramma (che contine il numero di volte in cui ho utilizzato un colore) attraverso il vettore 
+
+        for(int i = 1; i<a.cols(); i++) 
+        {
+            a(1, i, 0) = a(0, i-1, 0) + a(1, i-1, 0); //creiamo il vettore che contiene il cdf 
+            if(m==0 || a(1, i, 0)<m) m = a(1, i, 0); //calcoliamo il minimo
+        }
+        /*        cdf(v)-cdfMin
+           round( -------------- *255)
+                  (r*c)-cdfMin
+        */
+        for(int j = 0; j<data.rows(); j++)
+            for(int i = 0; i<data.cols(); i++)r.data(j, i, k) = round(((a(1,r.data(j, i, k),0)-m)/(r.getCols()*r.getRows()-m))*255);//calcolo della equalizzazione atraverso la formula scritta sopra
+
+        a.~Tensor();
+    }
+
+    return r;
+}
 
 /**
  * Generate Random Image
