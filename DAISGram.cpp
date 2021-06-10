@@ -276,8 +276,6 @@ DAISGram DAISGram::smooth(int h) {
 	DAISGram ris;
 	//applico il convolve
 	ris.data = this->data.convolve(filtro);
-	//applico il rescale
-	ris.data.rescale(255);
 	return ris;
 }
 /**
