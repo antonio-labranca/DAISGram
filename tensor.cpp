@@ -18,7 +18,12 @@ using namespace std;
  *
  * Parameter-less class constructor
  */
-Tensor::Tensor() {}
+Tensor::Tensor() {
+	this->r = 0;
+	this->c = 0;
+	this->d = 0;
+	this->data = nullptr;
+}
 
 /**
  * Class constructor
@@ -34,6 +39,8 @@ Tensor::Tensor() {}
 Tensor::Tensor(int r, int c, int d, float v) {
 	if (r < 0 || c < 0 || d < 0)
 		throw unknown_operation();
+	else if(r == 0 || c == 0 || d == 0)
+		throw tensor_not_initialized();
 
 	//Inizializzo righe, colonne e profondita'
 	this->r = r;
@@ -58,8 +65,11 @@ Tensor::Tensor(int r, int c, int d, float v) {
 Tensor::~Tensor() {
 	//Controllo se esiste il vettore data
 	if (data) {
-		delete[] data;
-		data = nullptr;
+		delete[] this->data;
+		this->data = nullptr;
+		this->r = 0;
+		this->c = 0;
+		this->d = 0;
 	}
 }
 
@@ -104,6 +114,9 @@ float& Tensor::operator()(int i, int j, int k) {
  * @return the new Tensor
  */
 Tensor::Tensor(const Tensor& that) {
+	if (that.r == 0 || that.c == 0 || that.d == 0)
+		throw tensor_not_initialized();
+
 	//Inizializzo righe, colonne e profondita'
 	this->r = that.r;
 	this->c = that.c;
@@ -395,6 +408,9 @@ Tensor Tensor::operator/(const float& rhs) const
  */
 Tensor& Tensor::operator=(const Tensor& other)
 {
+	if (other.r == 0 || other.c == 0 || other.d == 0)
+		throw tensor_not_initialized();
+
 	int n = other.r * other.c * other.d;
 
 	this->r = other.r;
@@ -577,7 +593,7 @@ Tensor Tensor::subset(unsigned int row_start, unsigned int row_end, unsigned int
 	Tensor rit(row_end - row_start, col_end - col_start, depth_end - depth_start, 0); //creo un nuovo oggetto di tipo tensore copiando quello passato
 
 	if (r == 0 || c == 0 || d == 0)               throw tensor_not_initialized{};//lancio errore di vettore non inizializzato 
-	else if (rit.c > c || rit.r > r || rit.d > d) throw dimension_mismatch{};   //lancio errore di dimensioni non corrispondenti 
+	else if (rit.c > c || rit.r > r || rit.d > d) throw index_out_of_bound{};   //lancio errore di dimensioni non corrispondenti 
 
 	for (size_t i = row_start; i < row_end; i++)               //scorro per le righe
 		for (size_t j = col_start; j < col_end; j++)          //scorro per le colonne
@@ -606,6 +622,8 @@ Tensor Tensor::subset(unsigned int row_start, unsigned int row_end, unsigned int
 * @return a new Tensor containing the result of the concatenation
 */
 Tensor Tensor::concat(const Tensor& rhs, int axis)const {
+	if (r == 0 || c == 0 || d == 0) throw tensor_not_initialized{};//lancio errore di vettore non inizializzato
+
 	int row{ this->r }, col{ this->c }, dep{ this->d };
 
 	switch (axis) {
@@ -678,6 +696,8 @@ Tensor Tensor::concat(const Tensor& rhs, int axis)const {
 * P = (F-1)/2 p=numero pixel da agg      F F è la dimensione del filtro ->R/C
 */
 Tensor Tensor::convolve(const Tensor& f) const {
+	if (r == 0 || c == 0 || d == 0) throw tensor_not_initialized{};//lancio errore di vettore non inizializzato
+
 	//se dimensione scorretta
 	if (this->d != f.d)
 		throw dimension_mismatch();

@@ -146,9 +146,6 @@ DAISGram DAISGram::grayscale()
  * @return returns a new DAISGram containing the modified object
  */
 DAISGram DAISGram::warhol(){
-    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
-        throw tensor_not_initialized();
-    
     Tensor redToGreen(this->data); // Tensore con canali rosso e verde invertiti
     Tensor blueToGreen(this->data); // Tensore con canali blu e verde invertiti
     Tensor redToBlue(this->data); // Tensore con canali rosso e blu invertiti
@@ -193,9 +190,6 @@ DAISGram DAISGram::warhol(){
  * @return returns a new DAISGram containing the modified object
  */
 DAISGram DAISGram::sharpen(){
-    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
-        throw tensor_not_initialized();
-    
     DAISGram result;
 
 	// Creo il filtro
@@ -231,9 +225,6 @@ DAISGram DAISGram::sharpen(){
  * @return returns a new DAISGram containing the modified object
  */
 DAISGram DAISGram::emboss(){
-    if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
-        throw tensor_not_initialized();
-    
     DAISGram result;
 
 	// Creo il filtro
@@ -361,34 +352,31 @@ DAISGram DAISGram::blend(const DAISGram& rhs, float alpha) {
  * @return returns a new DAISGram containing the result.
  */  
 DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){
-	if(this->data.rows() != 0 || this->data.cols() != 0 || this->data.depth() != 0)
-		if(this->data.rows() == bkg.data.rows() && this->data.cols() == bkg.data.cols() && this->data.depth() == bkg.data.depth()){
-			Tensor t(this->data);
-			DAISGram result;
-			result.data = t;
+	if(this->data.rows() == bkg.data.rows() && this->data.cols() == bkg.data.cols() && this->data.depth() == bkg.data.depth()){
+		Tensor t(this->data);
+		DAISGram result;
+		result.data = t;
 
-			for(int i = 0; i < this->data.rows(); i++)
-				for(int j = 0; j < this->data.cols(); j++){
-					int k = 0;
-					bool flag = true; // Booleano per uscire dal ciclo se almeno un pixel è fuori dal range
+		for(int i = 0; i < this->data.rows(); i++)
+			for(int j = 0; j < this->data.cols(); j++){
+				int k = 0;
+				bool flag = true; // Booleano per uscire dal ciclo se almeno un pixel è fuori dal range
 
-					while (k < this->data.depth() && flag){
-						if(data(i, j, k) < (rgb[k] - threshold[k]) || data(i, j , k) > (rgb[k] + threshold[k]))
-							flag = false;
-						k++;
-					}
-
-					if(flag){
-						for(k = 0; k < result.data.depth(); k++)
-							result.data(i, j, k) = bkg.data(i, j, k);
-					}
+				while (k < this->data.depth() && flag){
+					if(data(i, j, k) < (rgb[k] - threshold[k]) || data(i, j , k) > (rgb[k] + threshold[k]))
+						flag = false;
+					k++;
 				}
-			return result;
-		}
-		else
-			throw dimension_mismatch();
+
+				if(flag){
+					for(k = 0; k < result.data.depth(); k++)
+						result.data(i, j, k) = bkg.data(i, j, k);
+				}
+			}
+		return result;
+	}
 	else
-		throw tensor_not_initialized();
+		throw dimension_mismatch();
 }
 
 /**
@@ -400,36 +388,46 @@ DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){
  * 
  * @return returns a new DAISGram containing the equalized image.
  */  
-DAISGram DAISGram::equalize()
-{
+DAISGram DAISGram::equalize(){
     DAISGram r;
-    Tensor b{data};
-    float m{0.0};
-    r.data = b;
+    r.data = Tensor(this->data);
+	
+    for(int k = 0; k<this->data.depth(); k++){
+		Tensor a{256, 1, 1};
 
-    for(int k = 0; k<data.depth() ; k++)
-    {
-        Tensor a{2,256,1,0};
+		// Creo istogramma con i valori del tensore this->data
+        for(int i = 0; i<this->data.rows(); i++)
+        	for(int j = 0; j<this->data.cols(); j++)
+				a(this->data(i, j, k),0,0)++;
 
-        for(int j = 0; j<data.rows(); j++)
-            for(int i = 0; i<data.cols(); i++)a(0,data(j,i,k),0)++;//creo istogramma (che contine il numero di volte in cui ho utilizzato un colore) attraverso il vettore 
+		// Calcolo cdf(v)
+        for(int i = 1; i<a.rows(); i++) 
+        	a(i, 0, 0) += a(i-1, 0, 0);
 
-        for(int i = 1; i<a.cols(); i++) 
-        {
-            a(1, i, 0) = a(0, i-1, 0) + a(1, i-1, 0); //creiamo il vettore che contiene il cdf 
-            if(m==0 || a(1, i, 0)<m) m = a(1, i, 0); //calcoliamo il minimo
-        }
+		float m{0.0};
+		int i{0};
+			
+		// Cerco il minimo cdf(v)
+		while(i < 256 && m == 0){
+        	if(a(i, 0, 0) > 0){
+				m = a(i, 0, 0);
+			} 
+			i++;
+		}
+
+		// Calcolo il divisore della funzione di equalizzazione
+		float divider = (r.getRows()*r.getCols()) - m;
+
         /*        cdf(v)-cdfMin
            round( -------------- *255)
-                  (r*c)-cdfMin
+        	      (r*c)-cdfMin
         */
-        for(int j = 0; j<data.rows(); j++)
-            for(int i = 0; i<data.cols(); i++)r.data(j, i, k) = round(((a(1,r.data(j, i, k),0)-m)/(r.getCols()*r.getRows()-m))*255);//calcolo della equalizzazione atraverso la formula scritta sopra
+        for(int i = 0; i<this->data.rows(); i++)
+            for(int j = 0; j<this->data.cols(); j++)
+				r.data(i, j, k) = round(((a(this->data(i, j, k), 0, 0)-m)/divider)*255.0);
 
-        a.~Tensor();
-    }
-
-    return r;
+    	}
+		return r;
 }
 
 /**
