@@ -96,7 +96,7 @@ int DAISGram::getDepth() { return data.depth(); }
 DAISGram DAISGram::brighten(float bright)
 {
 	DAISGram rit;
-	rit.data = data + bright;//carico a nel valore di ritorno e gli sommo la luminosità 
+	rit.data = data + bright;//carico data nel valore di ritorno e gli sommo la luminosità 
 
 	rit.data.clamp(0, 255);//aggiusto i valori usciti dal range tra 0 e 255 
 
@@ -121,11 +121,11 @@ DAISGram DAISGram::grayscale()
         for (int j = 0; j < data.cols(); j++)//scorro per le colonne
         {
             s = 0.0;
-            for (int k = 0; k < data.depth(); k++) s += data(i, j, k);//scorro per la profontita' del tensore per calcolare la media
+            for (int k = 0; k < data.depth(); k++) s += data(i, j, k);//scorro per la profondita' del tensore per calcolare la media
 
             s /= data.depth();//divido per il numero di valori sommati
 
-            for (int k = 0; k < data.depth(); k++)  rit.data(i, j, k) = s;//scorro per la profontita' del tensore per inserire il valore appena calcolato
+            for (int k = 0; k < data.depth(); k++)  rit.data(i, j, k) = s;//scorro per la profondita' del tensore per inserire il valore appena calcolato
         }
 
     return rit;
@@ -149,9 +149,9 @@ DAISGram DAISGram::warhol(){
     if(data.rows() == 0 || data.cols() == 0 || data.depth() == 0)
         throw tensor_not_initialized();
     
-    Tensor redToGreen(this->data);
-    Tensor blueToGreen(this->data);
-    Tensor redToBlue(this->data);
+    Tensor redToGreen(this->data); // Tensore con canali rosso e verde invertiti
+    Tensor blueToGreen(this->data); // Tensore con canali blu e verde invertiti
+    Tensor redToBlue(this->data); // Tensore con canali rosso e blu invertiti
     float swap;
 
     for(int i = 0; i < data.rows(); i++)
@@ -198,6 +198,7 @@ DAISGram DAISGram::sharpen(){
     
     DAISGram result;
 
+	// Creo il filtro
     Tensor filter(3, 3, data.depth());
     for(int k = 0; k < filter.depth(); k++){
         filter(0, 1, k) = -1;
@@ -235,6 +236,7 @@ DAISGram DAISGram::emboss(){
     
     DAISGram result;
 
+	// Creo il filtro
     Tensor filter(3, 3, data.depth());
     for(int k = 0; k < filter.depth(); k++){
         filter(0, 0, k) = -2;
@@ -273,10 +275,10 @@ DAISGram DAISGram::smooth(int h) {
 		throw unknown_operation();
 	// calcolo c come  1/(h*h)
 	float c = static_cast<float>(1.0 / (h * h));
-	//creo il fitro
+	//creo il filtro
 	Tensor filtro(h, h, data.depth(), c);
 	DAISGram ris;
-	//applico il convolve
+	//applico la convolve
 	ris.data = this->data.convolve(filtro);
 	return ris;
 }
@@ -364,15 +366,18 @@ DAISGram DAISGram::greenscreen(DAISGram & bkg, int rgb[], float threshold[]){
 			Tensor t(this->data);
 			DAISGram result;
 			result.data = t;
+
 			for(int i = 0; i < this->data.rows(); i++)
 				for(int j = 0; j < this->data.cols(); j++){
 					int k = 0;
-					bool flag = true;
+					bool flag = true; // Booleano per uscire dal ciclo se almeno un pixel è fuori dal range
+
 					while (k < this->data.depth() && flag){
 						if(data(i, j, k) < (rgb[k] - threshold[k]) || data(i, j , k) > (rgb[k] + threshold[k]))
 							flag = false;
 						k++;
 					}
+
 					if(flag){
 						for(k = 0; k < result.data.depth(); k++)
 							result.data(i, j, k) = bkg.data(i, j, k);
