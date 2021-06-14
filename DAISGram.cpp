@@ -112,23 +112,25 @@ DAISGram DAISGram::brighten(float bright)
  */
 DAISGram DAISGram::grayscale()
 {
-	int s{ 0 };
-	Tensor a{ data.rows(),data.cols(), data.depth(), 0 };//creo il tensore che andra' nel valore di ritorno 
-	DAISGram rit;
-	rit.data = a;//carico a nel valore di ritorno 
+    float s{ 0.0 };
+    Tensor a{ data.rows(),data.cols(), data.depth(), 0 };//creo il tensore che andra' nel valore di ritorno 
+    DAISGram rit;
+    rit.data = a;//carico a nel valore di ritorno 
 
-	for (int i = 0; i < data.rows(); i++)     //scorro per le righe
-		for (int j = 0; j < data.cols(); j++)//scorro per le colonne
-		{
-			for (int k = 0; k < data.depth(); k++) s += data(i, j, k);//scorro per la profontita' del tensore per calcolare la media
+    for (int i = 0; i < data.rows(); i++)     //scorro per le righe
+        for (int j = 0; j < data.cols(); j++)//scorro per le colonne
+        {
+            s = 0.0;
+            for (int k = 0; k < data.depth(); k++) s += data(i, j, k);//scorro per la profontita' del tensore per calcolare la media
 
-			s /= data.depth();//divido per il numero di valori sommati
+            s /= data.depth();//divido per il numero di valori sommati
 
-			for (int k = 0; k < data.depth(); k++)  rit.data(i, j, k) = s;//scorro per la profontita' del tensore per inserire il valore appena calcolato
-		}
+            for (int k = 0; k < data.depth(); k++)  rit.data(i, j, k) = s;//scorro per la profontita' del tensore per inserire il valore appena calcolato
+        }
 
-	return rit;
+    return rit;
 }
+
 
 /**
  * Create a Warhol effect on the image
